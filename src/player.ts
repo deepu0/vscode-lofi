@@ -417,7 +417,9 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
 </head>
 <body>
   <section class="now">
+    <div class="now-label">Now playing</div>
     <div class="station" id="station">—</div>
+    <div class="genre" id="genre"></div>
     <div class="status" id="status">Idle</div>
   </section>
   <section class="controls">

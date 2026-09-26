@@ -106,6 +106,7 @@
   function render() {
     const s = stations[state.stationIndex];
     $("station").textContent = s ? s.name : "—";
+    $("genre").textContent = s ? s.genre : "";
     const labels = {
       idle: "Idle",
       loading: "Tuning in…",
@@ -127,9 +128,15 @@
     list.replaceChildren(
       ...stations.map((st, i) => {
         const li = document.createElement("li");
-        li.textContent = st.name;
         li.title = st.genre;
         li.className = i === state.stationIndex ? "active" : "";
+        const name = document.createElement("div");
+        name.className = "st-name";
+        name.textContent = st.name;
+        const genre = document.createElement("div");
+        genre.className = "st-genre";
+        genre.textContent = st.genre;
+        li.append(name, genre);
         li.addEventListener("click", () => send({ type: "command", command: "select", index: i }));
         return li;
       }),
