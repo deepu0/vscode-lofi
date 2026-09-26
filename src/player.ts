@@ -70,8 +70,12 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   /** Backoff state for reconnecting a dropped stream. Reset on manual play/pause/switch. */
   private retryAttempt = 0;
   private retryTimer?: ReturnType<typeof setTimeout>;
-  /** The station index that the current retry sequence belongs to. */
-  private retryStationIndex?: number;
+  /**
+   * The station *id* that the current retry sequence belongs to. Keyed on id
+   * (not numeric index) so reordering the station list via `setStations` cannot
+   * silently repoint an in-flight reconnect at a different station.
+   */
+  private retryStationId?: string;
 
   private stations: readonly Station[];
 
@@ -91,14 +95,67 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
 
   /**
    * Replace the station list (e.g. after the `lofiRadio.customStations` setting
-   * changed). Clamps the current index into range and re-renders. The webview
-   * gets the refreshed list so its picker stays in sync.
+   * changed at runtime). Reconciles the *currently selected* station by its
+   * stable `id` rather than by numeric index, because reordering, inserting, or
+   * removing entries would otherwise silently repoint the same index at a
+   * different station and leave audio and UI describing different things.
+   *
+   * Semantics:
+   *  - If the active station's id still exists in the new list, keep it selected
+   *    (its index is updated to wherever it now lives). Any in-flight reconnect
+   *    is keyed on the station id, so its pending retry stays aimed at the same
+   *    station the user is listening to even after the index shifts.
+   *  - If the active station's id is gone, we never auto-switch to a different
+   *    station (a core invariant). Instead we STOP: cancel any reconnect, drop
+   *    the audio connection, and fall back to an idle/paused state. The picker
+   *    is reset to a valid index so the UI stays consistent.
+   *  - Always resets/re-evaluates backoff so a settings change mid-reconnect can
+   *    never strand the player in `reconnecting` with no pending timer.
+   * The webview gets the refreshed list so its picker stays in sync.
    */
   setStations(stations: readonly Station[]): void {
+    const activeId = this.stations[this.state.stationIndex]?.id;
+    const wasActive =
+      this.state.status === "playing" ||
+      this.state.status === "loading" ||
+      this.state.status === "reconnecting";
     this.stations = stations;
-    const clamped = Math.min(Math.max(this.state.stationIndex, 0), Math.max(stations.length - 1, 0));
-    this.setState({ stationIndex: clamped });
+
+    // Where did the previously selected station move to (if it survived)?
+    const newIndex = activeId !== undefined ? stations.findIndex((s) => s.id === activeId) : -1;
+
+    if (newIndex === -1) {
+      // The selected station is gone. Never auto-switch: stop playback and reset
+      // to a valid, idle selection so audio and UI agree.
+      this.resetBackoff();
+      const fallback = Math.min(Math.max(this.state.stationIndex, 0), Math.max(stations.length - 1, 0));
+      if (wasActive) {
+        this.setState({ stationIndex: fallback, status: "paused", error: undefined });
+        this.post({ type: "pause" });
+      } else {
+        this.setState({ stationIndex: fallback });
+      }
+      void this.memento.update("stationIndex", fallback);
+      this.post({ type: "init", stations: this.stations, state: this.state });
+      return;
+    }
+
+    // The selected station survived. Keep it selected at its new index. Any
+    // in-flight reconnect is keyed on the station id, so a pending retry timer
+    // still targets the right station after the index shift (no re-pointing
+    // needed). The persisted index is refreshed so a reload restores this station.
+    this.setState({ stationIndex: newIndex });
+    void this.memento.update("stationIndex", newIndex);
     this.post({ type: "init", stations: this.stations, state: this.state });
+
+    // Safety net: if we are somehow `reconnecting` with no pending timer (e.g. a
+    // prior edit cancelled it), re-arm the backoff so we can never strand the
+    // player in `reconnecting` with no way forward.
+    if (this.state.status === "reconnecting" && this.retryTimer === undefined) {
+      // handleDrop only re-arms from playing/loading, so nudge through loading.
+      this.setState({ status: "loading", error: undefined });
+      this.handleDrop("station list changed");
+    }
   }
 
   get station(): Station {
@@ -206,11 +263,12 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
     // Only retry a stream that was actually playing/loading (not idle/paused/needsClick).
     if (this.state.status !== "playing" && this.state.status !== "loading") return;
 
-    const stationIndex = this.state.stationIndex;
+    const stationId = this.station?.id;
+    if (stationId === undefined) return;
     // A drop for a different station than the one we were retrying starts over.
-    if (this.retryStationIndex !== stationIndex) {
+    if (this.retryStationId !== stationId) {
       this.retryAttempt = 0;
-      this.retryStationIndex = stationIndex;
+      this.retryStationId = stationId;
     }
 
     if (this.retryAttempt >= MAX_RETRY_ATTEMPTS) {
@@ -227,14 +285,18 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => {
       this.retryTimer = undefined;
-      void this.retryPlay(stationIndex);
+      void this.retryPlay(stationId);
     }, delay);
   }
 
-  /** Re-issue a play for the retrying station without resetting backoff state. */
-  private async retryPlay(stationIndex: number): Promise<void> {
+  /**
+   * Re-issue a play for the retrying station without resetting backoff state.
+   * Keyed on station id: if the list was reordered mid-reconnect the station is
+   * found at its new index; if it was removed entirely the retry is abandoned.
+   */
+  private async retryPlay(stationId: string): Promise<void> {
     // Bail if the user changed things while we were waiting.
-    if (this.state.status !== "reconnecting" || this.state.stationIndex !== stationIndex) return;
+    if (this.state.status !== "reconnecting" || this.station?.id !== stationId) return;
     this.lastTick = undefined;
     this.setState({ status: "loading", error: undefined });
     try {
@@ -246,7 +308,7 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
     }
     // Only send the play if the user hasn't changed things while the view resolved.
     const current: PlayerState = this.state;
-    if (current.stationIndex === stationIndex && current.status === "loading") {
+    if (this.station?.id === stationId && current.status === "loading") {
       this.post({ type: "play", url: this.station.streamUrl, volume: this.state.volume });
     }
   }
@@ -258,7 +320,7 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
       this.retryTimer = undefined;
     }
     this.retryAttempt = 0;
-    this.retryStationIndex = undefined;
+    this.retryStationId = undefined;
   }
 
   /**

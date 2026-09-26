@@ -101,6 +101,34 @@ export async function run(): Promise<void> {
     };
     save();
 
+    // Light check: setStations reconciles the *current* station by id, not index.
+    // (1) A reordered list must keep the same station selected. (2) A list that
+    // drops the current station must stop playback (never auto-switch).
+    const currentId = player.station.id;
+    // Reorder: reverse the built-ins so the current station lands at a new index.
+    const reordered = [...BUILT_IN_STATIONS].reverse();
+    const expectedIndex = reordered.findIndex((s) => s.id === currentId);
+    player.setStations(reordered);
+    const afterReorder = {
+      idPreserved: player.station.id === currentId,
+      repointedToExpectedIndex: player.state.stationIndex === expectedIndex,
+      status: player.state.status,
+    };
+    // Remove the current station entirely: playback must stop, never switch.
+    const withoutCurrent = reordered.filter((s) => s.id !== currentId);
+    player.setStations(withoutCurrent);
+    const afterRemoval = {
+      stopped: player.state.status === "paused" || player.state.status === "idle",
+      didNotAutoSwitch: player.station?.id !== currentId,
+      status: player.state.status,
+    };
+    // Restore the full built-in list and resume the original station for Q2/Q3.
+    player.setStations(BUILT_IN_STATIONS);
+    await player.play(BUILT_IN_STATIONS.findIndex((s) => s.id === currentId));
+    await waitFor(() => player.state.status === "playing", 20_000);
+    results.setStationsReconcile = { currentId, afterReorder, afterRemoval };
+    save();
+
     // Q2: hide the view while playing.
     await vscode.commands.executeCommand("workbench.view.explorer");
     await sleep(1000);
