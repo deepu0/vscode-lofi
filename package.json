@@ -1,0 +1,82 @@
+{
+  "name": "vscode-lofi",
+  "displayName": "Lofi Radio",
+  "description": "Chill internet radio in your VS Code sidebar and status bar.",
+  "version": "0.0.1",
+  "publisher": "deepu0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepu0/vscode-lofi.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "lofi",
+    "music",
+    "radio",
+    "focus",
+    "chill"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lofi",
+          "title": "Lofi Radio",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "lofi": [
+        {
+          "type": "webview",
+          "id": "lofi.player",
+          "name": "Player"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "lofi.togglePlay",
+        "title": "Play / Pause",
+        "category": "Lofi Radio"
+      },
+      {
+        "command": "lofi.next",
+        "title": "Next Station",
+        "category": "Lofi Radio"
+      },
+      {
+        "command": "lofi.previous",
+        "title": "Previous Station",
+        "category": "Lofi Radio"
+      },
+      {
+        "command": "lofi.pickStation",
+        "title": "Pick Station…",
+        "category": "Lofi Radio"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "experiment": "npm run build && node dist/experiment/run.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  }
+}
