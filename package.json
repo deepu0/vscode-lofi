@@ -5,6 +5,7 @@
   "version": "0.0.1",
   "publisher": "deepu0",
   "license": "MIT",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/deepu0/vscode-lofi.git"
@@ -23,6 +24,7 @@
     "chill"
   ],
   "main": "./dist/extension.js",
+  "browser": "./dist/web/extension.js",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -131,12 +133,15 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
+    "icon": "node scripts/gen-icon.mjs media/icon.png",
+    "package": "vsce package",
     "experiment": "npm run build && node dist/experiment/run.js"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.4.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.23.0",
     "typescript": "^5.5.0"
   }
