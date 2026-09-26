@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { Player, PlayerState } from "./player";
 import { resolveStations } from "./stations";
+import { registerYouTubeExperiment, youtube } from "./experiment/youtube";
 
 function loadStations(): { stations: ReturnType<typeof resolveStations>["stations"]; problems: string[] } {
   const customStations = vscode.workspace.getConfiguration("lofiRadio").get("customStations");
@@ -73,8 +74,12 @@ export function activate(context: vscode.ExtensionContext) {
     void player.reveal();
   }
 
+  // Hidden, isolated YouTube spike — not part of the shipping player.
+  // Only reachable via the `lofi.youtubeExperiment` command. See experiment/youtube.ts.
+  registerYouTubeExperiment(context);
+
   // Exposed for the prototype experiment (src/experiment).
-  return { player };
+  return { player, youtube };
 }
 
 export function deactivate() {}

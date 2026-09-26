@@ -72,6 +72,11 @@
         "command": "lofi.toggleMute",
         "title": "Toggle Mute",
         "category": "Lofi Radio"
+      },
+      {
+        "command": "lofi.youtubeExperiment",
+        "title": "YouTube Experiment (spike)",
+        "category": "Lofi Radio"
       }
     ],
     "keybindings": [

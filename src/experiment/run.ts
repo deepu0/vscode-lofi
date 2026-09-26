@@ -120,6 +120,8 @@ async function main() {
   };
   fs.rmSync(env.LOFI_RESULTS, { force: true });
 
+  // LOFI_SUITE selects which in-editor suite runs (default: the v1 player checks).
+  const suite = process.env.LOFI_SUITE === "youtube" ? "youtube-suite.js" : "suite.js";
   const exe = await downloadAndUnzipVSCode(process.env.VSCODE_VERSION ?? "stable");
   const log = fs.openSync(path.join(root, ".vscode-test", "experiment.log"), "w");
   const child = spawn(
@@ -127,7 +129,7 @@ async function main() {
     [
       workspace,
       `--extensionDevelopmentPath=${root}`,
-      `--extensionTestsPath=${path.join(__dirname, "suite.js")}`,
+      `--extensionTestsPath=${path.join(__dirname, suite)}`,
       `--user-data-dir=${path.join(tmp, "user-data")}`,
       `--extensions-dir=${path.join(tmp, "extensions")}`,
       `--remote-debugging-port=${CDP_PORT}`,
