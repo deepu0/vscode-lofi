@@ -29,7 +29,11 @@ const builds = [
   // Prototype-only: headless VS Code experiment (launcher + in-editor test).
   {
     ...common,
-    entryPoints: ["src/experiment/run.ts", "src/experiment/suite.ts"],
+    entryPoints: [
+      "src/experiment/run.ts",
+      "src/experiment/suite.ts",
+      "src/experiment/youtube-suite.ts",
+    ],
     outdir: "dist/experiment",
     external: ["vscode", "@vscode/test-electron"],
   },
