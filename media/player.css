@@ -1,0 +1,35 @@
+body {
+  padding: 8px 12px;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+}
+
+.now { margin-bottom: 10px; }
+.station { font-weight: 600; font-size: 1.1em; }
+.status { opacity: 0.7; font-size: 0.9em; }
+
+.controls { display: flex; gap: 6px; margin-bottom: 10px; }
+.controls button {
+  flex: 1;
+  padding: 4px 0;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+.controls button.primary {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.volume { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.volume input { flex: 1; }
+
+.stations { list-style: none; padding: 0; margin: 0; }
+.stations li { padding: 4px 6px; border-radius: 2px; cursor: pointer; }
+.stations li:hover { background: var(--vscode-list-hoverBackground); }
+.stations li.active {
+  color: var(--vscode-list-activeSelectionForeground);
+  background: var(--vscode-list-activeSelectionBackground);
+}
