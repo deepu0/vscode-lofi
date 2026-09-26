@@ -7,7 +7,7 @@
 
   /** @type {{name: string, genre: string}[]} */
   let stations = [];
-  let state = { stationIndex: 0, status: "idle", volume: 0.7 };
+  let state = { stationIndex: 0, status: "idle", volume: 0.7, muted: false };
 
   const send = (/** @type {any} */ m) => vscode.postMessage(m);
   const status = (/** @type {string} */ s, /** @type {string=} */ error) => send({ type: "status", status: s, error });
@@ -45,11 +45,17 @@
   const isStream = () => !!audio.src && !audio.src.startsWith("blob:");
   audio.addEventListener("playing", () => isStream() && status("playing"));
   audio.addEventListener("waiting", () => isStream() && status("loading"));
+  // A live stream that errors, stalls to nothing, or ends has effectively dropped.
+  // Report it as "dropped" (not a terminal "error") so the extension can own the
+  // exponential-backoff reconnect logic in one place. The silent unlock blob is
+  // excluded by isStream(), and AbortError-style transitions never reach here.
   audio.addEventListener("error", () => {
     if (!isStream()) return;
     const e = audio.error;
-    status("error", e ? `MediaError ${e.code}: ${e.message || "unknown"}` : "unknown error");
+    status("dropped", e ? `MediaError ${e.code}: ${e.message || "unknown"}` : "unknown error");
   });
+  audio.addEventListener("stalled", () => isStream() && status("dropped", "stream stalled"));
+  audio.addEventListener("ended", () => isStream() && status("dropped", "stream ended"));
 
   window.addEventListener("message", (event) => {
     const m = event.data;
@@ -57,11 +63,16 @@
       case "init":
         stations = m.stations;
         state = m.state;
+        audio.muted = !!state.muted;
         render();
         break;
       case "state":
         state = m.state;
+        audio.muted = !!state.muted;
         render();
+        break;
+      case "mute":
+        audio.muted = !!m.value;
         break;
       case "play":
         audio.volume = m.volume;
@@ -87,6 +98,7 @@
   $("toggle").addEventListener("click", () => send({ type: "command", command: "toggle" }));
   $("next").addEventListener("click", () => send({ type: "command", command: "next" }));
   $("prev").addEventListener("click", () => send({ type: "command", command: "previous" }));
+  $("mute").addEventListener("click", () => send({ type: "command", command: "mute" }));
   $("volume").addEventListener("input", (e) =>
     send({ type: "volume", value: Number(/** @type {HTMLInputElement} */ (e.target).value) }),
   );
@@ -99,11 +111,17 @@
       loading: "Tuning in…",
       playing: "Playing",
       paused: "Paused",
-      error: "Error",
+      reconnecting: "Reconnecting…",
+      error: state.error && /offline/i.test(state.error) ? "Station offline" : "Error",
       needsClick: "Click ▶ to start (VS Code needs one click first)",
     };
     $("status").textContent = labels[/** @type {keyof typeof labels} */ (state.status)] ?? state.status;
-    $("toggle").textContent = state.status === "playing" || state.status === "loading" ? "⏸" : "▶";
+    $("toggle").textContent =
+      state.status === "playing" || state.status === "loading" || state.status === "reconnecting" ? "⏸" : "▶";
+    const muteBtn = $("mute");
+    muteBtn.textContent = state.muted ? "🔇" : "🔊";
+    muteBtn.title = state.muted ? "Unmute" : "Mute";
+    muteBtn.classList.toggle("active", !!state.muted);
     /** @type {HTMLInputElement} */ ($("volume")).value = String(state.volume);
     const list = $("stations");
     list.replaceChildren(

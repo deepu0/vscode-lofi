@@ -13,7 +13,19 @@ const common = {
 };
 
 const builds = [
+  // Desktop (Node) extension host bundle.
   { ...common, entryPoints: ["src/extension.ts"], outfile: "dist/extension.js" },
+  // Web extension host bundle (vscode.dev / github.dev). The extension source uses
+  // only the `vscode` API — no Node-only APIs — so the browser target is just a
+  // second bundle with platform:"browser" and no source changes. Matches the
+  // `browser` field in package.json.
+  {
+    ...common,
+    platform: "browser",
+    target: "es2020",
+    entryPoints: ["src/extension.ts"],
+    outfile: "dist/web/extension.js",
+  },
   // Prototype-only: headless VS Code experiment (launcher + in-editor test).
   {
     ...common,

@@ -1,8 +1,11 @@
 src/**
 docs/**
+scripts/**
+.agents/**
 dist/experiment/**
 **/*.map
 .vscode-test/**
 node_modules/**
 tsconfig.json
 esbuild.mjs
+experiment-results.json

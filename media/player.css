@@ -22,6 +22,14 @@ body {
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
 }
+.controls button#mute {
+  flex: 0 0 auto;
+  min-width: 32px;
+}
+.controls button#mute.active {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
 
 .volume { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .volume input { flex: 1; }
