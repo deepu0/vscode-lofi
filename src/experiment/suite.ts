@@ -88,6 +88,19 @@ export async function run(): Promise<void> {
     save();
     if (!playing) return;
 
+    // Light check: toggleMute flips player.state.muted (no audio assertion; no sound card).
+    const mutedBefore = player.state.muted;
+    await player.toggleMute();
+    const mutedAfter = player.state.muted;
+    await player.toggleMute();
+    results.muteToggle = {
+      mutedBefore,
+      mutedAfterToggle: mutedAfter,
+      flipped: mutedAfter === !mutedBefore,
+      restored: player.state.muted === mutedBefore,
+    };
+    save();
+
     // Q2: hide the view while playing.
     await vscode.commands.executeCommand("workbench.view.explorer");
     await sleep(1000);

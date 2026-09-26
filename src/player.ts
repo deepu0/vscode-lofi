@@ -8,6 +8,7 @@ export interface PlayerState {
   stationIndex: number;
   status: PlaybackStatus;
   volume: number;
+  muted: boolean;
   error?: string;
 }
 
@@ -25,7 +26,7 @@ type FromWebview =
   | { type: "unlocked" }
   | { type: "status"; status: PlaybackStatus; error?: string }
   | ({ type: "tick" } & Omit<Tick, "at">)
-  | { type: "command"; command: "toggle" | "next" | "previous" | "select"; index?: number }
+  | { type: "command"; command: "toggle" | "next" | "previous" | "select" | "mute"; index?: number }
   | { type: "volume"; value: number };
 
 const VIEW_ID = "lofi.player";
@@ -49,16 +50,32 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   /** True once the user has clicked inside the webview (audio element unlocked). */
   unlocked = false;
 
+  private stations: readonly Station[];
+
   constructor(
     private readonly extensionUri: vscode.Uri,
-    private readonly stations: readonly Station[],
+    stations: readonly Station[],
     private readonly memento: vscode.Memento,
   ) {
+    this.stations = stations;
     this.state = {
-      stationIndex: Math.min(memento.get("stationIndex", 0), stations.length - 1),
+      stationIndex: Math.min(Math.max(memento.get("stationIndex", 0), 0), stations.length - 1),
       status: "idle",
       volume: memento.get("volume", 0.7),
+      muted: memento.get("muted", false),
     };
+  }
+
+  /**
+   * Replace the station list (e.g. after the `lofiRadio.customStations` setting
+   * changed). Clamps the current index into range and re-renders. The webview
+   * gets the refreshed list so its picker stays in sync.
+   */
+  setStations(stations: readonly Station[]): void {
+    this.stations = stations;
+    const clamped = Math.min(Math.max(this.state.stationIndex, 0), Math.max(stations.length - 1, 0));
+    this.setState({ stationIndex: clamped });
+    this.post({ type: "init", stations: this.stations, state: this.state });
   }
 
   get station(): Station {
@@ -135,6 +152,13 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
     this.post({ type: "volume", value: this.state.volume });
   }
 
+  async toggleMute(): Promise<void> {
+    const muted = !this.state.muted;
+    this.setState({ muted });
+    await this.memento.update("muted", muted);
+    this.post({ type: "mute", value: muted });
+  }
+
   /**
    * The webview only exists once the sidebar view has been shown. When play is
    * triggered from the status bar before that, reveal the view so VS Code
@@ -181,6 +205,7 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
         if (m.command === "next") void this.next();
         if (m.command === "previous") void this.previous();
         if (m.command === "select" && m.index !== undefined) void this.play(m.index);
+        if (m.command === "mute") void this.toggleMute();
         break;
       case "volume":
         void this.setVolume(m.value);
@@ -225,6 +250,7 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
     <button id="prev" title="Previous station">⏮</button>
     <button id="toggle" class="primary" title="Play / Pause">▶</button>
     <button id="next" title="Next station">⏭</button>
+    <button id="mute" title="Mute / Unmute">🔊</button>
   </section>
   <label class="volume">Volume <input id="volume" type="range" min="0" max="1" step="0.01"></label>
   <ul class="stations" id="stations"></ul>

@@ -63,8 +63,55 @@
         "command": "lofi.pickStation",
         "title": "Pick Station…",
         "category": "Lofi Radio"
+      },
+      {
+        "command": "lofi.toggleMute",
+        "title": "Toggle Mute",
+        "category": "Lofi Radio"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Lofi Radio",
+      "properties": {
+        "lofiRadio.customStations": {
+          "type": "array",
+          "default": [],
+          "description": "Extra radio stations, merged after the built-in list. Each entry needs id, name and streamUrl; genre and homepage are optional.",
+          "markdownDescription": "Extra radio stations, merged after the built-in list. Each entry needs `id`, `name` and `streamUrl` (an http(s) URL); `genre` and `homepage` are optional.\n\nExample:\n\n```json\n\"lofiRadio.customStations\": [\n  {\n    \"id\": \"my-lofi\",\n    \"name\": \"My Lofi\",\n    \"streamUrl\": \"https://example.com/stream.mp3\",\n    \"genre\": \"Lofi\",\n    \"homepage\": \"https://example.com\"\n  }\n]\n```",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "streamUrl"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the station."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name shown in the player."
+              },
+              "streamUrl": {
+                "type": "string",
+                "description": "Direct http(s) audio stream URL."
+              },
+              "genre": {
+                "type": "string",
+                "description": "Optional genre label."
+              },
+              "homepage": {
+                "type": "string",
+                "description": "Optional station homepage URL."
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
   },
   "scripts": {
     "build": "node esbuild.mjs",

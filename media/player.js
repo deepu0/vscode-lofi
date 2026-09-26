@@ -7,7 +7,7 @@
 
   /** @type {{name: string, genre: string}[]} */
   let stations = [];
-  let state = { stationIndex: 0, status: "idle", volume: 0.7 };
+  let state = { stationIndex: 0, status: "idle", volume: 0.7, muted: false };
 
   const send = (/** @type {any} */ m) => vscode.postMessage(m);
   const status = (/** @type {string} */ s, /** @type {string=} */ error) => send({ type: "status", status: s, error });
@@ -57,11 +57,16 @@
       case "init":
         stations = m.stations;
         state = m.state;
+        audio.muted = !!state.muted;
         render();
         break;
       case "state":
         state = m.state;
+        audio.muted = !!state.muted;
         render();
+        break;
+      case "mute":
+        audio.muted = !!m.value;
         break;
       case "play":
         audio.volume = m.volume;
@@ -87,6 +92,7 @@
   $("toggle").addEventListener("click", () => send({ type: "command", command: "toggle" }));
   $("next").addEventListener("click", () => send({ type: "command", command: "next" }));
   $("prev").addEventListener("click", () => send({ type: "command", command: "previous" }));
+  $("mute").addEventListener("click", () => send({ type: "command", command: "mute" }));
   $("volume").addEventListener("input", (e) =>
     send({ type: "volume", value: Number(/** @type {HTMLInputElement} */ (e.target).value) }),
   );
@@ -104,6 +110,10 @@
     };
     $("status").textContent = labels[/** @type {keyof typeof labels} */ (state.status)] ?? state.status;
     $("toggle").textContent = state.status === "playing" || state.status === "loading" ? "⏸" : "▶";
+    const muteBtn = $("mute");
+    muteBtn.textContent = state.muted ? "🔇" : "🔊";
+    muteBtn.title = state.muted ? "Unmute" : "Mute";
+    muteBtn.classList.toggle("active", !!state.muted);
     /** @type {HTMLInputElement} */ ($("volume")).value = String(state.volume);
     const list = $("stations");
     list.replaceChildren(
