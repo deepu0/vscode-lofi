@@ -23,7 +23,9 @@
     "chill"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -70,9 +72,21 @@
         "category": "Lofi Radio"
       }
     ],
+    "keybindings": [
+      {
+        "command": "lofi.togglePlay",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l"
+      }
+    ],
     "configuration": {
       "title": "Lofi Radio",
       "properties": {
+        "lofiRadio.resumeOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open the Lofi Radio player with your last station ready when VS Code starts. VS Code blocks audio without a user gesture, so this only reveals the player ready to play; press the play button (or Ctrl+Alt+L / Cmd+Alt+L) once to start audio."
+        },
         "lofiRadio.customStations": {
           "type": "array",
           "default": [],

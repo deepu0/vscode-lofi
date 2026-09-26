@@ -26,6 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
       paused: "$(play)",
       loading: "$(loading~spin)",
       playing: "$(debug-pause)",
+      reconnecting: "$(sync~spin)",
       error: "$(warning)",
       needsClick: "$(hand)",
     }[s.status];
@@ -34,9 +35,11 @@ export function activate(context: vscode.ExtensionContext) {
     statusItem.tooltip =
       s.status === "error"
         ? `Lofi Radio: ${s.error ?? "playback failed"}`
-        : s.status === "needsClick"
-          ? "Lofi Radio: click ▶ in the Lofi Radio sidebar once to allow audio"
-          : "Lofi Radio: play / pause";
+        : s.status === "reconnecting"
+          ? `Lofi Radio: reconnecting to "${player.station.name}"…`
+          : s.status === "needsClick"
+            ? "Lofi Radio: click ▶ in the Lofi Radio sidebar once to allow audio"
+            : "Lofi Radio: play / pause";
   };
   render(player.state);
   statusItem.show();
@@ -62,6 +65,13 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
   );
+
+  // Resume on startup: reveal the player with the last remembered station ready,
+  // waiting for one click. VS Code blocks autoplay without a user gesture, so we
+  // never call play() here (confirmed prototype finding).
+  if (vscode.workspace.getConfiguration("lofiRadio").get("resumeOnStartup", false)) {
+    void player.reveal();
+  }
 
   // Exposed for the prototype experiment (src/experiment).
   return { player };

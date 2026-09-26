@@ -1,8 +1,18 @@
 import * as vscode from "vscode";
 import { Station } from "./stations";
 
-/** `needsClick`: VS Code blocked playback until the user clicks inside the player once. */
-export type PlaybackStatus = "idle" | "loading" | "playing" | "paused" | "error" | "needsClick";
+/**
+ * `needsClick`: VS Code blocked playback until the user clicks inside the player once.
+ * `reconnecting`: a live stream dropped and the Player is retrying the same station with backoff.
+ */
+export type PlaybackStatus =
+  | "idle"
+  | "loading"
+  | "playing"
+  | "paused"
+  | "reconnecting"
+  | "error"
+  | "needsClick";
 
 export interface PlayerState {
   stationIndex: number;
@@ -21,16 +31,23 @@ export interface Tick {
   visibility: string;
 }
 
+/** `dropped` is reported by the webview when a live stream errors/stalls/ends. */
+type WebviewStatus = PlaybackStatus | "dropped";
+
 type FromWebview =
   | { type: "ready" }
   | { type: "unlocked" }
-  | { type: "status"; status: PlaybackStatus; error?: string }
+  | { type: "status"; status: WebviewStatus; error?: string }
   | ({ type: "tick" } & Omit<Tick, "at">)
   | { type: "command"; command: "toggle" | "next" | "previous" | "select" | "mute"; index?: number }
   | { type: "volume"; value: number };
 
 const VIEW_ID = "lofi.player";
 const READY_TIMEOUT_MS = 10_000;
+
+/** Exponential-backoff schedule for reconnecting a dropped stream (never auto-switches). */
+const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
+const MAX_RETRY_ATTEMPTS = RETRY_DELAYS_MS.length;
 
 /**
  * Owns playback state. The audio element lives in the sidebar webview; this
@@ -49,6 +66,12 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   lastTick?: Tick;
   /** True once the user has clicked inside the webview (audio element unlocked). */
   unlocked = false;
+
+  /** Backoff state for reconnecting a dropped stream. Reset on manual play/pause/switch. */
+  private retryAttempt = 0;
+  private retryTimer?: ReturnType<typeof setTimeout>;
+  /** The station index that the current retry sequence belongs to. */
+  private retryStationIndex?: number;
 
   private stations: readonly Station[];
 
@@ -97,10 +120,21 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
       this.view = undefined;
       this.isReady = false;
       this.unlocked = false;
-      if (this.state.status === "playing" || this.state.status === "loading") {
+      this.resetBackoff();
+      if (this.state.status === "playing" || this.state.status === "loading" || this.state.status === "reconnecting") {
         this.setState({ status: "paused" });
       }
     });
+  }
+
+  /**
+   * Reveal the player view with the last remembered station selected, without
+   * starting playback. Used by `lofiRadio.resumeOnStartup`: VS Code blocks
+   * autoplay without a user gesture, so we only get the player ready for the
+   * one click that unlocks audio (confirmed prototype finding).
+   */
+  async reveal(): Promise<void> {
+    await this.ensureView();
   }
 
   async toggle(): Promise<void> {
@@ -112,6 +146,8 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   }
 
   async play(index = this.state.stationIndex): Promise<void> {
+    // A user-initiated (or programmatic) play always starts a fresh session.
+    this.resetBackoff();
     this.lastTick = undefined;
     this.setState({ stationIndex: index, status: "loading", error: undefined });
     await this.memento.update("stationIndex", index);
@@ -120,6 +156,8 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   }
 
   async pause(): Promise<void> {
+    // A manual pause cancels any pending reconnect so we don't fight the user.
+    this.resetBackoff();
     this.setState({ status: "paused" });
     this.post({ type: "pause" });
   }
@@ -160,6 +198,70 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   }
 
   /**
+   * A live stream dropped. Retry the SAME station with exponential backoff.
+   * Never changes stationIndex and never auto-switches. After the last attempt
+   * fails, sets status `error` ("Station offline") and warns the user.
+   */
+  private handleDrop(error?: string): void {
+    // Only retry a stream that was actually playing/loading (not idle/paused/needsClick).
+    if (this.state.status !== "playing" && this.state.status !== "loading") return;
+
+    const stationIndex = this.state.stationIndex;
+    // A drop for a different station than the one we were retrying starts over.
+    if (this.retryStationIndex !== stationIndex) {
+      this.retryAttempt = 0;
+      this.retryStationIndex = stationIndex;
+    }
+
+    if (this.retryAttempt >= MAX_RETRY_ATTEMPTS) {
+      const name = this.station?.name ?? "This station";
+      this.resetBackoff();
+      this.setState({ status: "error", error: `Station offline: ${error ?? "stream unavailable"}` });
+      void vscode.window.showWarningMessage(`Lofi Radio: "${name}" appears to be offline.`);
+      return;
+    }
+
+    const delay = RETRY_DELAYS_MS[this.retryAttempt];
+    this.retryAttempt += 1;
+    this.setState({ status: "reconnecting", error: undefined });
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = undefined;
+      void this.retryPlay(stationIndex);
+    }, delay);
+  }
+
+  /** Re-issue a play for the retrying station without resetting backoff state. */
+  private async retryPlay(stationIndex: number): Promise<void> {
+    // Bail if the user changed things while we were waiting.
+    if (this.state.status !== "reconnecting" || this.state.stationIndex !== stationIndex) return;
+    this.lastTick = undefined;
+    this.setState({ status: "loading", error: undefined });
+    try {
+      await this.ensureView();
+    } catch {
+      // View could not load; treat as another failed attempt.
+      this.handleDrop("player view unavailable");
+      return;
+    }
+    // Only send the play if the user hasn't changed things while the view resolved.
+    const current: PlayerState = this.state;
+    if (current.stationIndex === stationIndex && current.status === "loading") {
+      this.post({ type: "play", url: this.station.streamUrl, volume: this.state.volume });
+    }
+  }
+
+  /** Cancel any pending retry and clear backoff bookkeeping. */
+  private resetBackoff(): void {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = undefined;
+    }
+    this.retryAttempt = 0;
+    this.retryStationIndex = undefined;
+  }
+
+  /**
    * The webview only exists once the sidebar view has been shown. When play is
    * triggered from the status bar before that, reveal the view so VS Code
    * resolves it, then wait for the webview script to report ready.
@@ -191,6 +293,16 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
       case "status":
         // Ignore late media events after the user paused.
         if (this.state.status === "paused" && m.status !== "error") return;
+        if (m.status === "dropped") {
+          // A live stream fell over. Retry the SAME station with backoff instead
+          // of surfacing a terminal error. Ignore drops while reconnecting (a
+          // failed retry attempt is handled by scheduleRetry's own timer).
+          if (this.state.status === "reconnecting") return;
+          this.handleDrop(m.error);
+          return;
+        }
+        // A real playback signal ends any reconnect sequence.
+        if (m.status === "playing") this.resetBackoff();
         this.setState({ status: m.status, error: m.error });
         if (m.status === "needsClick") {
           // Show the player so the user can give the one click VS Code requires.
@@ -261,6 +373,7 @@ export class Player implements vscode.WebviewViewProvider, vscode.Disposable {
   }
 
   dispose(): void {
+    this.resetBackoff();
     this.changeEmitter.dispose();
   }
 }
