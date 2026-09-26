@@ -2,6 +2,10 @@
 
 Chill internet radio in your VS Code sidebar and status bar. Curated lofi, chillhop, and ambient stations, plus your own, playing quietly in the background while you code.
 
+![The Lofi Radio sidebar player panel showing the now-playing station, playback controls, a volume slider, and the built-in station list.](media/screenshot.png)
+
+*The sidebar player panel, rendered on the VS Code dark theme. This is a faithful mock of the actual panel markup and styles; a real screenshot captured with <kbd>F5</kbd> in the Extension Development Host can replace it.*
+
 ## Features
 
 - Sidebar player (headphones icon in the Activity Bar) with play/pause, next/previous, and mute.
@@ -67,11 +71,15 @@ Boolean, off by default. When on, VS Code opens the Lofi Radio player with your 
 | Station | Genre | Source / attribution |
 |---|---|---|
 | SomaFM Fluid | Instrumental hip-hop | [SomaFM](https://somafm.com/fluid/) — listener-supported; please [support them](https://somafm.com/support/) |
-| SomaFM Groove Salad | Ambient downtempo | [SomaFM](https://somafm.com/groovesalad/) — listener-supported; please [support them](https://somafm.com/support/) |
-| SomaFM Lush | Chill vocals | [SomaFM](https://somafm.com/lush/) — listener-supported; please [support them](https://somafm.com/support/) |
 | laut.fm lofi | Lofi | [laut.fm](https://laut.fm/lofi) |
 | REYFM #lofi | Lofi | [REYFM](https://www.reyfm.de/) |
 | I Love Chillhop | Chillhop | [I Love Music](https://www.ilovemusic.de/ilovechillhop/) |
+| SomaFM Groove Salad | Ambient downtempo | [SomaFM](https://somafm.com/groovesalad/) — listener-supported; please [support them](https://somafm.com/support/) |
+| SomaFM Lush | Chill vocals | [SomaFM](https://somafm.com/lush/) — listener-supported; please [support them](https://somafm.com/support/) |
+| SomaFM Beat Blender | Deep house / downtempo | [SomaFM](https://somafm.com/beatblender/) — listener-supported; please [support them](https://somafm.com/support/) |
+| SomaFM Sonic Universe | Space jazz | [SomaFM](https://somafm.com/sonicuniverse/) — listener-supported; please [support them](https://somafm.com/support/) |
+| SomaFM Drone Zone | Ambient | [SomaFM](https://somafm.com/dronezone/) — listener-supported; please [support them](https://somafm.com/support/) |
+| SomaFM Space Station Soma | Ambient / spacemusic | [SomaFM](https://somafm.com/spacestation/) — listener-supported; please [support them](https://somafm.com/support/) |
 
 Streams belong to their operators. Station operators who want their stream removed can [open an issue](https://github.com/deepu0/vscode-lofi/issues).
 

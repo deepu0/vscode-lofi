@@ -51,6 +51,34 @@ export const BUILT_IN_STATIONS: readonly Station[] = [
     streamUrl: "https://ice.somafm.com/lush-128-mp3",
     homepage: "https://somafm.com/lush/",
   },
+  {
+    id: "somafm-beatblender",
+    name: "SomaFM Beat Blender",
+    genre: "Deep house / downtempo",
+    streamUrl: "https://ice.somafm.com/beatblender-128-mp3",
+    homepage: "https://somafm.com/beatblender/",
+  },
+  {
+    id: "somafm-sonicuniverse",
+    name: "SomaFM Sonic Universe",
+    genre: "Space jazz",
+    streamUrl: "https://ice.somafm.com/sonicuniverse-128-mp3",
+    homepage: "https://somafm.com/sonicuniverse/",
+  },
+  {
+    id: "somafm-dronezone",
+    name: "SomaFM Drone Zone",
+    genre: "Ambient",
+    streamUrl: "https://ice.somafm.com/dronezone-128-mp3",
+    homepage: "https://somafm.com/dronezone/",
+  },
+  {
+    id: "somafm-spacestation",
+    name: "SomaFM Space Station Soma",
+    genre: "Ambient / spacemusic",
+    streamUrl: "https://ice.somafm.com/spacestation-128-mp3",
+    homepage: "https://somafm.com/spacestation/",
+  },
 ];
 
 const isNonEmptyString = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
