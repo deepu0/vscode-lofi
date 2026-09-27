@@ -1,16 +1,78 @@
+/*
+ * Cozy, lofi.cafe-inspired player skin.
+ *
+ * Design rules honored here:
+ *  - Every text / surface color still derives from var(--vscode-*) so the panel
+ *    stays readable in BOTH light and dark themes. The warm hues below are
+ *    DECORATIVE ONLY: they tint the ambient background scene, the control hover
+ *    glow, and the active-station accent. They are never applied to body text.
+ *  - The looping "scene" is a self-contained CSS gradient animation (no network
+ *    request, no asset file, so no CSP change is required). It sits behind the
+ *    content via body::before and is non-interactive.
+ *  - The animation is cheap (a single slow background-position drift) and is
+ *    frozen under @media (prefers-reduced-motion: reduce).
+ */
+:root {
+  /* Warm cozy accents, used only for the scene + decorative glow/accents. */
+  --lofi-warm-1: #f6b17a; /* soft amber */
+  --lofi-warm-2: #e9739b; /* dusty rose */
+  --lofi-warm-3: #7c6cc4; /* muted twilight violet */
+  --lofi-glow: rgba(246, 177, 122, 0.45);
+  --lofi-radius: 10px;
+}
+
 body {
-  padding: 10px 12px;
+  padding: 12px 14px;
   color: var(--vscode-foreground);
   font-family: var(--vscode-font-family);
+  position: relative;
+  isolation: isolate;
+}
+
+/*
+ * Ambient scene: a slow, low-contrast warm gradient that drifts behind the
+ * player content. It is layered over (blended into) the theme background so the
+ * theme still governs the base tone; the warm stops are kept at low opacity so
+ * they tint rather than replace the theme colors, and text keeps its contrast.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -40%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 15% 12%, var(--lofi-warm-1) 0%, transparent 55%),
+    radial-gradient(120% 90% at 85% 22%, var(--lofi-warm-2) 0%, transparent 55%),
+    radial-gradient(140% 110% at 50% 100%, var(--lofi-warm-3) 0%, transparent 60%);
+  background-size: 200% 200%;
+  opacity: 0.16;
+  filter: blur(6px);
+  animation: lofi-drift 42s ease-in-out infinite alternate;
+}
+
+@keyframes lofi-drift {
+  0% {
+    background-position: 0% 0%, 100% 0%, 50% 100%;
+  }
+  50% {
+    background-position: 30% 40%, 70% 30%, 40% 70%;
+  }
+  100% {
+    background-position: 60% 20%, 40% 60%, 55% 90%;
+  }
 }
 
 /* Now-playing card: a clear, self-contained header for the current station. */
 .now {
   margin-bottom: 14px;
-  padding: 10px 12px;
-  border-radius: 4px;
+  padding: 12px 14px;
+  border-radius: var(--lofi-radius);
   border-left: 3px solid var(--vscode-focusBorder);
+  /* Slightly translucent theme surface so the scene glows softly behind it
+     while text still reads against a theme-derived background. */
   background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.14);
 }
 .now-label {
   text-transform: uppercase;
@@ -42,16 +104,21 @@ body {
 }
 .controls button {
   flex: 1;
-  padding: 6px 0;
+  padding: 8px 0;
   border: none;
-  border-radius: 3px;
+  border-radius: 999px; /* pill / cozy rounded controls */
   cursor: pointer;
   font-size: 1em;
   color: var(--vscode-button-secondaryForeground);
   background: var(--vscode-button-secondaryBackground);
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 .controls button:hover {
   background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-secondaryBackground));
+  box-shadow: 0 0 0 1px var(--lofi-glow), 0 2px 10px var(--lofi-glow);
+}
+.controls button:active {
+  transform: translateY(1px);
 }
 .controls button.primary {
   color: var(--vscode-button-foreground);
@@ -59,15 +126,16 @@ body {
 }
 .controls button.primary:hover {
   background: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+  box-shadow: 0 0 0 1px var(--lofi-glow), 0 2px 12px var(--lofi-glow);
 }
 .controls button#mute {
   flex: 0 0 auto;
-  min-width: 34px;
+  min-width: 38px;
 }
 .controls button#mute.active {
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
-  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder), 0 0 8px var(--lofi-glow);
 }
 
 .volume {
@@ -89,21 +157,24 @@ body {
   margin: 0;
 }
 .stations li {
-  padding: 6px 8px;
-  border-radius: 3px;
+  padding: 7px 9px;
+  border-radius: 8px; /* softer, cozier corners */
   cursor: pointer;
   border-left: 3px solid transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .stations li + li {
-  margin-top: 2px;
+  margin-top: 3px;
 }
 .stations li:hover {
   background: var(--vscode-list-hoverBackground);
+  box-shadow: 0 0 0 1px var(--lofi-glow);
 }
 .stations li.active {
   color: var(--vscode-list-activeSelectionForeground);
   background: var(--vscode-list-activeSelectionBackground);
   border-left-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 10px var(--lofi-glow);
 }
 .st-name {
   font-weight: 500;
@@ -115,4 +186,19 @@ body {
 }
 .stations li.active .st-genre {
   opacity: 0.85;
+}
+
+/*
+ * Reduced-motion: freeze the ambient scene. Reduced-motion users still get the
+ * warm palette (a static gradient), just without any movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+    background-position: 20% 30%, 80% 25%, 50% 90%;
+  }
+  .controls button,
+  .stations li {
+    transition: none;
+  }
 }
