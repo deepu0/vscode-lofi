@@ -72,7 +72,9 @@ body::before {
   /* Slightly translucent theme surface so the scene glows softly behind it
      while text still reads against a theme-derived background. */
   background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.14);
+  /* Theme-neutral soft glow (warm accent) rather than a fixed dark halo, so it
+     reads well on both light and dark themes. */
+  box-shadow: 0 1px 10px var(--lofi-glow);
 }
 .now-label {
   text-transform: uppercase;
