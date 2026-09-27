@@ -127,7 +127,7 @@ async function main() {
     [
       workspace,
       `--extensionDevelopmentPath=${root}`,
-      `--extensionTestsPath=${path.join(__dirname, "suite.js")}`,
+      `--extensionTestsPath=${path.join(__dirname, process.env.LOFI_SUITE === "yt-localhost" ? "yt-localhost-suite.js" : "suite.js")}`,
       `--user-data-dir=${path.join(tmp, "user-data")}`,
       `--extensions-dir=${path.join(tmp, "extensions")}`,
       `--remote-debugging-port=${CDP_PORT}`,

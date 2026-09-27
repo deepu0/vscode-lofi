@@ -73,8 +73,18 @@ export function activate(context: vscode.ExtensionContext) {
     void player.reveal();
   }
 
+  // Hidden, isolated YouTube-via-localhost spike — desktop only (needs a Node
+  // http server), so require it lazily to keep the web bundle free of `http`/`net`.
+  let ytLocalhost: unknown;
+  if (typeof process !== "undefined" && process.versions?.node) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require("./experiment/yt-localhost") as typeof import("./experiment/yt-localhost");
+    mod.registerYtLocalhostExperiment(context);
+    ytLocalhost = mod.ytLocalhost;
+  }
+
   // Exposed for the prototype experiment (src/experiment).
-  return { player };
+  return { player, ytLocalhost };
 }
 
 export function deactivate() {}
