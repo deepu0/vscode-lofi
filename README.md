@@ -4,7 +4,7 @@ Chill internet radio in your VS Code sidebar and status bar. Curated lofi, chill
 
 ![The Lofi Radio sidebar player panel showing the now-playing station, playback controls, a volume slider, and the built-in station list.](media/screenshot.png)
 
-*The sidebar player panel, rendered on the VS Code dark theme. This is a faithful mock of the actual panel markup and styles; a real screenshot captured with <kbd>F5</kbd> in the Extension Development Host can replace it.*
+*The sidebar player panel, rendered on the VS Code dark theme, with its cozy warm backdrop and soft rounded controls. This is a faithful mock of the actual panel markup and styles; a real screenshot captured with <kbd>F5</kbd> in the Extension Development Host can replace it.*
 
 ## Features
 
